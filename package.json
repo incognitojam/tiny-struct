@@ -2,10 +2,12 @@
   "type": "module",
   "scripts": {
     "test": "bun test",
+    "typecheck": "tsc",
     "publish": "npx jsr publish"
   },
   "devDependencies": {
     "@types/bun": "^1.2.5",
-    "type-fest": "^4.37.0"
+    "type-fest": "^4.37.0",
+    "typescript": "^5.1.0"
   }
 }
