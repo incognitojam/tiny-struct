@@ -2,19 +2,13 @@
 
 A minimal TypeScript library for parsing and building binary data structures.
 
-## Install
-
-```
-npm install tiny-struct
-```
-
 ## Usage
 
 ```typescript
-import { struct, bytes, uint32, uint64 } from 'tiny-struct';
+import { struct, bytes, uint32, uint64 } from "tiny-struct";
 
 // Define a struct
-const GPTHeader = struct('GPTHeader', {
+const GPTHeader = struct("GPTHeader", {
   signature: bytes(8),
   revision: uint32(),
   headerSize: uint32(),
