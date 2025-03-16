@@ -166,11 +166,7 @@ export function string(length: number): FieldType<string> {
   return {
     size: length,
     parse: (buffer, offset) => {
-      const bytes = new Uint8Array(length);
-      for (let i = 0; i < length; i++) {
-        bytes[i] = buffer.getUint8(offset + i);
-      }
-      return new TextDecoder().decode(bytes);
+      return new TextDecoder().decode(new Uint8Array(buffer.buffer, offset, length));
     },
     write: (buffer, offset, value) => {
       const encoded = new TextEncoder().encode(value);
