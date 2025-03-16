@@ -1,4 +1,6 @@
+import { readableStreamToArrayBuffer } from "bun";
 import { expect, test, describe } from "bun:test";
+import { XzReadableStream } from "xz-decompress";
 import { struct, bytes, uint32, uint64 } from "../src";
 
 describe("GPT Header", () => {
@@ -38,7 +40,7 @@ describe("GPT Header", () => {
       partEntryStartLba: 2n,
       numPartEntries: 128,
       partEntrySize: 128,
-      crc32PartEntries: 0x87654321
+      crc32PartEntries: 0x87654321,
     };
     const buffer = GPTHeader.to(header);
     expect(buffer.byteLength).toBe(92);
@@ -55,5 +57,24 @@ describe("GPT Header", () => {
     const view = new DataView(buffer);
     expect(view.getUint32(8, true)).toBe(0x00010000); // revision
     expect(view.getBigUint64(24, true)).toBe(1n); // currentLba
+  });
+
+  test("external", async () => {
+    const manifestUrl = "https://raw.githubusercontent.com/commaai/openpilot/refs/heads/master/system/hardware/tici/all-partitions.json";
+    const manifest = await fetch(manifestUrl).then((res) => res.json());
+    const gptImage = manifest.find((image: { name: string }) => image.name === "gpt_main_0");
+    const compressedResponse = await fetch(gptImage.url);
+    const buffer = await readableStreamToArrayBuffer(new XzReadableStream(compressedResponse.body!));
+    const gpt = GPTHeader.from(buffer.slice(4096));
+    expect(gpt).toMatchObject({
+      signature: new TextEncoder().encode("EFI PART"),
+      revision: 0x00010000,
+      headerSize: 92,
+      reserved: 0,
+      currentLba: 1n,
+      partEntryStartLba: 2n,
+      numPartEntries: 32,
+      partEntrySize: 128,
+    });
   });
 });

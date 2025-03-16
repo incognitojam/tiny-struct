@@ -8,6 +8,7 @@
   "devDependencies": {
     "@types/bun": "^1.2.5",
     "type-fest": "^4.37.0",
-    "typescript": "^5.1.0"
+    "typescript": "^5.1.0",
+    "xz-decompress": "^0.2.2"
   }
 }
