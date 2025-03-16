@@ -119,4 +119,61 @@ describe("struct library", () => {
     const parsed = Simple.from(buffer, 4);
     expect(parsed.value).toBe(0x12345678);
   });
+
+  test("instance methods work correctly", () => {
+    const Header = struct("Header", {
+      magic: bytes(4),
+      version: uint16(),
+      flags: uint8(),
+      count: uint32(),
+    }, { littleEndian: true });
+
+    const initialData = {
+      magic: new TextEncoder().encode("ABCD"),
+      version: 123,
+      flags: 7,
+      count: 12345,
+    };
+
+    const buffer = Header.to(initialData);
+    const header = Header.from(buffer);
+
+    // Verify initial parsing worked
+    expect(new TextDecoder().decode(header.magic)).toBe("ABCD");
+    expect(header.version).toBe(123);
+
+    // Test the $toBuffer method
+    const newBuffer = header.$toBuffer();
+    expect(newBuffer.byteLength).toBe(11);
+
+    // Verify the new buffer has the same content
+    const view = new DataView(newBuffer);
+    expect(view.getUint8(0)).toBe(65); // "A"
+    expect(view.getUint16(4, true)).toBe(123); // version
+
+    // Test the $clone method
+    const cloned = header.$clone();
+    expect(cloned).not.toBe(header); // Different object reference
+    expect(cloned.version).toBe(123);
+    expect(new TextDecoder().decode(cloned.magic)).toBe("ABCD");
+
+    // Modify the clone and make sure it doesn't affect the original
+    cloned.version = 456;
+    cloned.magic[0] = 88; // "X"
+
+    // Verify original is unchanged
+    expect(header.version).toBe(123);
+    expect(header.magic[0]).toBe(65); // "A"
+
+    // Convert modified clone to buffer
+    const cloneBuffer = cloned.$toBuffer();
+    const cloneView = new DataView(cloneBuffer);
+    expect(cloneView.getUint16(4, true)).toBe(456); // Updated version
+    expect(cloneView.getUint8(0)).toBe(88); // "X"
+
+    // Check that $struct reference is correct
+    expect(header.$struct).toBe(Header);
+    expect(header.$struct.name).toBe("Header");
+    expect(header.$struct.size).toBe(11);
+  });
 });
