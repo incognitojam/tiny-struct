@@ -22,7 +22,11 @@ const GPTHeader = struct("GPTHeader", {
 const header = GPTHeader.from(buffer);
 console.log("Signature:", new TextDecoder().decode(header.signature));
 
-// Create binary data
+// Modify it
+header.revision = 0x00020000;
+const modifiedBuffer = header.$toBuffer();
+
+// Or create new data
 const newBuffer = GPTHeader.to({
   signature: new TextEncoder().encode("EFI PART"),
   revision: 0x00010000,
