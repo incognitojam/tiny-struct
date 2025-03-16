@@ -1,5 +1,11 @@
 {
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "publish": "npx jsr publish"
+  },
   "devDependencies": {
+    "@types/bun": "^1.2.5",
     "type-fest": "^4.37.0"
   }
 }
