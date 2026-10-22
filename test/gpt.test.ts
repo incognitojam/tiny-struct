@@ -60,7 +60,7 @@ describe("GPT Header", () => {
   });
 
   test("external", async () => {
-    const manifestUrl = "https://raw.githubusercontent.com/commaai/openpilot/refs/heads/master/system/hardware/tici/all-partitions.json";
+    const manifestUrl = "https://raw.githubusercontent.com/commaai/openpilot/cbda3f7994322ed40b428ea49c5bd868ff018700/openpilot/common/hardware/comma/all-partitions.json";
     const manifest = await fetch(manifestUrl).then((res) => res.json());
     const gptImage = manifest.find((image: { name: string }) => image.name === "gpt_main_0");
     const compressedResponse = await fetch(gptImage.url);
