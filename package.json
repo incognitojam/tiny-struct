@@ -1,6 +1,6 @@
 {
   "name": "@incognitojam/tiny-struct",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "A minimal TypeScript library for parsing and building binary data structures",
   "license": "MIT",
   "repository": {
