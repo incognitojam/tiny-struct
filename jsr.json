@@ -6,7 +6,9 @@
   "publish": {
     "exclude": [
       ".github",
-      "test"
+      "test",
+      ".changeset",
+      "scripts"
     ]
   }
 }

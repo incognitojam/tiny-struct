@@ -1,11 +1,19 @@
 {
+  "name": "@incognitojam/tiny-struct",
+  "version": "0.1.2",
+  "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc",
-    "publish": "npx jsr publish"
+    "changeset": "changeset",
+    "release:version": "changeset version && bun run version:sync",
+    "version:sync": "bun scripts/sync-jsr-version.ts",
+    "version:check": "bun scripts/sync-jsr-version.ts --check"
   },
   "devDependencies": {
+    "@changesets/cli": "^3.0.1",
     "@types/bun": "^1.2.5",
     "type-fest": "^4.37.0",
     "typescript": "^5.1.0",

@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - id: mode
+        uses: changesets/action/select-mode@v2.1.1
+      - name: Read the proposed version
+        if: steps.mode.outputs.mode == 'version'
+        id: next
+        run: |
+          status="$RUNNER_TEMP/changeset-status.json"
+          bunx changeset status --output="$status"
+          version="$(jq -er --arg name "$(jq -r .name package.json)" '.releases[] | select(.name == $name) | .newVersion' "$status")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Create or update the version PR
+        if: steps.mode.outputs.mode == 'version'
+        uses: changesets/action/version@v2.1.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: bun run release:version
+          commit-message: "release: version packages"
+          pr-title: "release: v${{ steps.next.outputs.version }}"
+
+  release:
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'publish'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun typecheck
+      - run: bun test
+      - run: bun run version:check
+      - name: Read release version
+        id: version
+        run: echo "tag=v$(jq -r .version package.json)" >> "$GITHUB_OUTPUT"
+      - name: Select the release tag
+        id: publish
+        uses: changesets/action/publish@v2.1.1
+        with:
+          script: bunx changeset git-tag
+          # The action ignores a failed tag push and then creates the release at the head of main.
+          create-github-releases: false
+          push-git-tags: false
+      # Publishing runs before tagging, so a failed run is retried by
+      # re-running it: JSR skips versions that are already published.
+      - name: Publish to JSR
+        if: steps.publish.outputs.published == 'true'
+        run: bunx jsr publish
+      - name: Tag the tested commit and publish the GitHub release
+        if: steps.publish.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA" > /dev/null
+          notes="$RUNNER_TEMP/release-notes.md"
+          awk -v heading="## ${TAG#v}" '$0 == heading { found = 1; next } found && /^## / { exit } found' CHANGELOG.md > "$notes"
+          grep -q . "$notes"
+          prerelease=()
+          if [[ "$TAG" == *-* ]]; then prerelease=(--prerelease); fi
+          gh release create "$TAG" --verify-tag --title "$TAG" --notes-file "$notes" "${prerelease[@]}"
