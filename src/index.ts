@@ -1,5 +1,5 @@
 export { struct } from "./struct-core.ts";
-export type { StructOptions, ExtractType, StructType } from "./struct-core.ts";
+export type { Struct, StructInstanceMethods, StructOptions, ExtractType, StructType } from "./struct-core.ts";
 
 export {
   bytes,
