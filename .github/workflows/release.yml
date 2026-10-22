@@ -54,6 +54,10 @@ jobs:
         with:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
+      # npm trusted publishing (OIDC) needs npm 11.5.1 or later.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - run: bun install --frozen-lockfile
       - run: bun typecheck
       - run: bun test
@@ -70,10 +74,19 @@ jobs:
           create-github-releases: false
           push-git-tags: false
       # Publishing runs before tagging, so a failed run is retried by
-      # re-running it: JSR skips versions that are already published.
+      # re-running it: both steps skip versions that are already published.
       - name: Publish to JSR
         if: steps.publish.outputs.published == 'true'
         run: bunx jsr publish
+      - name: Publish to npm
+        if: steps.publish.outputs.published == 'true'
+        run: |
+          spec="$(jq -r '.name + "@" + .version' package.json)"
+          if npm view "$spec" version > /dev/null 2>&1; then
+            echo "$spec is already published to npm, skipping"
+          else
+            npm publish --provenance --access public
+          fi
       - name: Tag the tested commit and publish the GitHub release
         if: steps.publish.outputs.published == 'true'
         env:
