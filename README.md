@@ -2,10 +2,22 @@
 
 A minimal TypeScript library for parsing and building binary data structures.
 
+## Installation
+
+tiny-struct is published to [npm](https://www.npmjs.com/package/@incognitojam/tiny-struct) and [JSR](https://jsr.io/@incognitojam/tiny-struct).
+
+```sh
+npm install @incognitojam/tiny-struct
+# or
+bun add @incognitojam/tiny-struct
+# or, with Deno
+deno add jsr:@incognitojam/tiny-struct
+```
+
 ## Usage
 
 ```typescript
-import { struct, bytes, uint32, uint64 } from "tiny-struct";
+import { struct, bytes, uint32, uint64 } from "@incognitojam/tiny-struct";
 
 // Define a struct
 const GPTHeader = struct("GPTHeader", {
