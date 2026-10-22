@@ -1,5 +1,11 @@
 # @incognitojam/tiny-struct
 
+## 0.1.4
+
+### Patch Changes
+
+- c9d3df5: The README now shows how to install from npm or JSR, and its usage example imports from `@incognitojam/tiny-struct` instead of `tiny-struct`, which is not a published package.
+
 ## 0.1.3
 
 ### Patch Changes
