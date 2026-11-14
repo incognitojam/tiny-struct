@@ -166,7 +166,12 @@ export function string(length: number): FieldType<string> {
   return {
     size: length,
     parse: (buffer, offset) => {
-      return new TextDecoder().decode(new Uint8Array(buffer.buffer, offset, length));
+      // Read relative to the view, and within its bounds, like the DataView getters do
+      const start = Math.trunc(offset) || 0;
+      if (start < 0 || start + length > buffer.byteLength) {
+        throw new RangeError("Offset is outside the bounds of the DataView");
+      }
+      return new TextDecoder().decode(new Uint8Array(buffer.buffer, buffer.byteOffset + start, length));
     },
     write: (buffer, offset, value) => {
       const encoded = new TextEncoder().encode(value);
