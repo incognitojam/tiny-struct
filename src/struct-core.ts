@@ -3,8 +3,13 @@
  * @module
  */
 
-import type { Simplify } from "type-fest";
 import type { FieldType } from "./field-types.ts";
+
+/**
+ * Flattens an intersection into a single object type so editors display it readably.
+ * Same as `Simplify` from type-fest.
+ */
+type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
 /**
  * Options for struct parsing
