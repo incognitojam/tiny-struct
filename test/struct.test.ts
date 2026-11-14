@@ -120,6 +120,75 @@ describe("struct library", () => {
     expect(parsed.value).toBe(0x12345678);
   });
 
+  describe("Uint8Array with a non-zero byteOffset", () => {
+    const Rec = struct("Rec", { tag: uint8(), name: string(5) });
+    const buf = new Uint8Array([
+      0x58, 0x58, 0x58, 0x58, 0x58, 0x58, 0x58, 0x58,
+      7, ...new TextEncoder().encode("hello"),
+    ]);
+
+    test("subarray parses the same as ArrayBuffer with an offset", () => {
+      const fromView = Rec.from(buf.subarray(8));
+      const fromBuffer = Rec.from(buf.buffer, 8);
+      expect([fromView.tag, fromView.name]).toEqual([7, "hello"]);
+      expect([fromBuffer.tag, fromBuffer.name]).toEqual([7, "hello"]);
+    });
+
+    test("offset argument is relative to the view", () => {
+      const parsed = Rec.from(buf.subarray(4), 4);
+      expect([parsed.tag, parsed.name]).toEqual([7, "hello"]);
+    });
+
+    test("every field type reads relative to the view", () => {
+      const All = struct("All", {
+        a: uint8(),
+        b: uint16(),
+        c: uint32(),
+        d: uint64(),
+        e: bytes(2),
+        f: cstring(4),
+        g: string(3),
+      }, { littleEndian: true });
+      const values = {
+        a: 1,
+        b: 0x0203,
+        c: 0x04050607,
+        d: 0x08090a0b0c0d0e0fn,
+        e: new Uint8Array([0x10, 0x11]),
+        f: "abc",
+        g: "xyz",
+      };
+      const encoded = new Uint8Array(All.to(values));
+      const padded = new Uint8Array(3 + encoded.length).fill(0xff);
+      padded.set(encoded, 3);
+
+      const parsed = All.from(padded.subarray(3));
+      expect(parsed.a).toBe(values.a);
+      expect(parsed.b).toBe(values.b);
+      expect(parsed.c).toBe(values.c);
+      expect(parsed.d).toBe(values.d);
+      expect([...parsed.e]).toEqual([...values.e]);
+      expect(parsed.f).toBe(values.f);
+      expect(parsed.g).toBe(values.g);
+    });
+
+    test("string field past the end of the view throws", () => {
+      const Name = struct("Name", { name: string(5) });
+      expect(() => Name.from(buf.subarray(0, 2))).toThrow(RangeError);
+      expect(() => Name.from(buf.subarray(8, 12))).toThrow(RangeError);
+    });
+
+    test("string field coerces offsets like the DataView getters", () => {
+      const view = new DataView(buf.buffer, 8, 2);
+      const field = string(1);
+      for (const offset of [NaN, 0.5, -0.5]) {
+        expect(field.parse(view, offset, false)).toBe(String.fromCharCode(view.getUint8(offset)));
+      }
+      expect(() => field.parse(view, -1, false)).toThrow(RangeError);
+      expect(() => field.parse(view, Infinity, false)).toThrow(RangeError);
+    });
+  });
+
   test("instance methods work correctly", () => {
     const Header = struct("Header", {
       magic: bytes(4),
