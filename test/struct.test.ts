@@ -1,6 +1,6 @@
 import { expect, test, describe } from "bun:test";
 import { struct, bytes, uint8, uint16, uint32, uint64, int8, int16, int32, int64, cstring, string, type FieldType } from "../src";
-import * as api from "../src";
+import type * as api from "../src";
 
 describe("struct library", () => {
   test("basic struct operations", () => {
@@ -161,7 +161,10 @@ describe("struct library", () => {
     // Each value fills its field (cstring up to its null terminator), so a view
     // one byte short of the field must throw. A leading byte puts the field at a
     // non-zero offset, so writes are checked against their offset too.
-    const cases: Record<string, [FieldType<any>, unknown]> = {
+    // The type requires a row for every field type the package exports.
+    type Factories = Omit<typeof api, "struct" | "custom">;
+    type Value<F> = F extends FieldType<infer T> ? T : never;
+    const cases: { [K in keyof Factories]: [ReturnType<Factories[K]>, Value<ReturnType<Factories[K]>>] } = {
       bytes: [bytes(3), new Uint8Array([1, 2, 3])],
       uint8: [uint8(), 0xfe],
       uint16: [uint16(), 0xfedc],
@@ -174,11 +177,6 @@ describe("struct library", () => {
       cstring: [cstring(4), "abc"],
       string: [string(3), "xyz"],
     };
-
-    test("covers every exported field type", () => {
-      const exported = Object.keys(api).filter((name) => name !== "struct" && name !== "custom");
-      expect(Object.keys(cases).sort()).toEqual(exported.sort());
-    });
 
     for (const [name, [field, value]] of Object.entries(cases)) {
       describe(name, () => {
