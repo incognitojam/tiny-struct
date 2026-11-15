@@ -1,6 +1,6 @@
 import { expect, test, describe } from "bun:test";
 import { struct, bytes, uint8, uint16, uint32, uint64, int8, int16, int32, int64, cstring, string, type FieldType } from "../src";
-import * as fieldTypes from "../src/field-types.ts";
+import * as api from "../src";
 
 describe("struct library", () => {
   test("basic struct operations", () => {
@@ -159,7 +159,8 @@ describe("struct library", () => {
 
   describe("every field type", () => {
     // Each value fills its field (cstring up to its null terminator), so a view
-    // one byte short of the field must throw.
+    // one byte short of the field must throw. A leading byte puts the field at a
+    // non-zero offset, so writes are checked against their offset too.
     const cases: Record<string, [FieldType<any>, unknown]> = {
       bytes: [bytes(3), new Uint8Array([1, 2, 3])],
       uint8: [uint8(), 0xfe],
@@ -175,19 +176,19 @@ describe("struct library", () => {
     };
 
     test("covers every exported field type", () => {
-      const exported = Object.keys(fieldTypes).filter((name) => name !== "custom");
+      const exported = Object.keys(api).filter((name) => name !== "struct" && name !== "custom");
       expect(Object.keys(cases).sort()).toEqual(exported.sort());
     });
 
     for (const [name, [field, value]] of Object.entries(cases)) {
       describe(name, () => {
-        const S = struct(name, { value: field }, { littleEndian: true });
-        const encoded = new Uint8Array(S.to({ value }));
+        const S = struct(name, { lead: uint8(), value: field }, { littleEndian: true });
+        const encoded = new Uint8Array(S.to({ lead: 0x5a, value }));
         const padded = new Uint8Array(3 + encoded.length + 3).fill(0xff);
         padded.set(encoded, 3);
 
         test("parses the same from every kind of input", () => {
-          expect(S.from(encoded.slice().buffer).value).toEqual(value);
+          expect(S.from(encoded.buffer).value).toEqual(value);
           expect(S.from(padded.buffer, 3).value).toEqual(value);
           expect(S.from(padded.subarray(3)).value).toEqual(value);
           expect(S.from(padded.subarray(1), 2).value).toEqual(value);
