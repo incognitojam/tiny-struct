@@ -1,5 +1,12 @@
 # @incognitojam/tiny-struct
 
+## 0.1.5
+
+### Patch Changes
+
+- cb85bd9: tiny-struct no longer depends on `type-fest`, so installing it pulls in no other packages. Struct types are unchanged.
+- 1b3cd33: `string()` fields now parse correctly when `from()` is given a `Uint8Array` with a non-zero `byteOffset`, such as a `subarray()` or a pooled Node.js `Buffer`. They previously read from the start of the underlying `ArrayBuffer` and returned the wrong bytes. A `string()` field that extends past the end of the view now throws a `RangeError`, like the other field types, instead of reading bytes outside the view.
+
 ## 0.1.4
 
 ### Patch Changes
