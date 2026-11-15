@@ -1,5 +1,6 @@
 import { expect, test, describe } from "bun:test";
-import { struct, bytes, uint8, uint16, uint32, uint64, cstring, string } from "../src";
+import { struct, bytes, uint8, uint16, uint32, uint64, int8, int16, int32, int64, cstring, string, type FieldType } from "../src";
+import * as fieldTypes from "../src/field-types.ts";
 
 describe("struct library", () => {
   test("basic struct operations", () => {
@@ -139,39 +140,6 @@ describe("struct library", () => {
       expect([parsed.tag, parsed.name]).toEqual([7, "hello"]);
     });
 
-    test("every field type reads relative to the view", () => {
-      const All = struct("All", {
-        a: uint8(),
-        b: uint16(),
-        c: uint32(),
-        d: uint64(),
-        e: bytes(2),
-        f: cstring(4),
-        g: string(3),
-      }, { littleEndian: true });
-      const values = {
-        a: 1,
-        b: 0x0203,
-        c: 0x04050607,
-        d: 0x08090a0b0c0d0e0fn,
-        e: new Uint8Array([0x10, 0x11]),
-        f: "abc",
-        g: "xyz",
-      };
-      const encoded = new Uint8Array(All.to(values));
-      const padded = new Uint8Array(3 + encoded.length).fill(0xff);
-      padded.set(encoded, 3);
-
-      const parsed = All.from(padded.subarray(3));
-      expect(parsed.a).toBe(values.a);
-      expect(parsed.b).toBe(values.b);
-      expect(parsed.c).toBe(values.c);
-      expect(parsed.d).toBe(values.d);
-      expect([...parsed.e]).toEqual([...values.e]);
-      expect(parsed.f).toBe(values.f);
-      expect(parsed.g).toBe(values.g);
-    });
-
     test("string field past the end of the view throws", () => {
       const Name = struct("Name", { name: string(5) });
       expect(() => Name.from(buf.subarray(0, 2))).toThrow(RangeError);
@@ -187,6 +155,49 @@ describe("struct library", () => {
       expect(() => field.parse(view, -1, false)).toThrow(RangeError);
       expect(() => field.parse(view, Infinity, false)).toThrow(RangeError);
     });
+  });
+
+  describe("every field type", () => {
+    // Each value fills its field (cstring up to its null terminator), so a view
+    // one byte short of the field must throw.
+    const cases: Record<string, [FieldType<any>, unknown]> = {
+      bytes: [bytes(3), new Uint8Array([1, 2, 3])],
+      uint8: [uint8(), 0xfe],
+      uint16: [uint16(), 0xfedc],
+      uint32: [uint32(), 0xfedcba98],
+      uint64: [uint64(), 0xfedcba9876543210n],
+      int8: [int8(), -2],
+      int16: [int16(), -0x1234],
+      int32: [int32(), -0x12345678],
+      int64: [int64(), -0x123456789abcdefn],
+      cstring: [cstring(4), "abc"],
+      string: [string(3), "xyz"],
+    };
+
+    test("covers every exported field type", () => {
+      const exported = Object.keys(fieldTypes).filter((name) => name !== "custom");
+      expect(Object.keys(cases).sort()).toEqual(exported.sort());
+    });
+
+    for (const [name, [field, value]] of Object.entries(cases)) {
+      describe(name, () => {
+        const S = struct(name, { value: field }, { littleEndian: true });
+        const encoded = new Uint8Array(S.to({ value }));
+        const padded = new Uint8Array(3 + encoded.length + 3).fill(0xff);
+        padded.set(encoded, 3);
+
+        test("parses the same from every kind of input", () => {
+          expect(S.from(encoded.slice().buffer).value).toEqual(value);
+          expect(S.from(padded.buffer, 3).value).toEqual(value);
+          expect(S.from(padded.subarray(3)).value).toEqual(value);
+          expect(S.from(padded.subarray(1), 2).value).toEqual(value);
+        });
+
+        test("throws when the view ends inside the field", () => {
+          expect(() => S.from(padded.subarray(3, 3 + encoded.length - 1))).toThrow(RangeError);
+        });
+      });
+    }
   });
 
   test("instance methods work correctly", () => {
